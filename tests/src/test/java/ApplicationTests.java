@@ -38,6 +38,7 @@ import org.junit.jupiter.params.provider.*;
 
 import java.io.*;
 import java.nio.*;
+import java.util.Objects;
 
 import static arc.Core.assets;
 import static mindustry.Vars.*;
@@ -277,6 +278,12 @@ public class ApplicationTests{
         Groups.unit.update();
         assertFalse(Groups.unit.isEmpty(), "No enemies spawned.");
     }
+    @Test
+    void wavesStubbing(){
+        WavesStub stub = new WavesStub(1f);
+        assertNotEquals(Waves.generate(stub.difficulty), null);
+    }
+
     @Test
     void runSectorCaptured(){
         int wave_count = 0;
