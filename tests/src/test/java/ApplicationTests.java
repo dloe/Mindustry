@@ -93,6 +93,8 @@ public class ApplicationTests{
                     content.createModContent();
 
                     add(logic = new Logic());
+                    //needs to construct events now
+                    logic.ConstructLogicEvents();
                     add(netServer = new NetServer());
 
                     //remove me if fail
@@ -508,9 +510,11 @@ public class ApplicationTests{
         d1.update();
         assertEquals(Blocks.copperWallLarge, world.tile(0, 0).block());
 
+        System.out.println(state.stats.buildingsDestroyed);
         d1.addBuild(new BuildPlan(0, 0));
         d1.damage(10000); //attack and destroy the building
         d1.update();
+        System.out.println(state.stats.buildingsDestroyed);
 
         assertEquals(Blocks.air, world.tile(0, 0).block());
     }
@@ -970,7 +974,18 @@ public class ApplicationTests{
     @Test
     void LogicStubTest()
     {
+        logic = new Logic();
+        //new logic is no longer running with event construction
 
+
+
+        world.loadMap(testMap);
+        //increments the wave number
+        logic.runWave();
+
+        Groups.unit.update();
+        //enemies present and spawned. No longer in prep phase. Wave has started.
+        assertTrue(!Groups.unit.isEmpty(), "Enemies spawned.");
     }
 
 

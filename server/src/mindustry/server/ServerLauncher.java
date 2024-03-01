@@ -72,7 +72,9 @@ public class ServerLauncher implements ApplicationListener{
         bases.load();
 
         Core.app.addListener(new ApplicationListener(){public void update(){ asyncCore.begin(); }});
+        //TO DO: Investigate interactions with new constructor logic
         Core.app.addListener(logic = new Logic());
+        logic.ConstructLogicEvents();
         Core.app.addListener(netServer = new NetServer());
         Core.app.addListener(new ServerControl(args));
         Core.app.addListener(new ApplicationListener(){public void update(){ asyncCore.end(); }});

@@ -15,6 +15,7 @@ import mindustry.maps.*;
 import mindustry.type.*;
 import mindustry.type.Weather.*;
 import mindustry.world.*;
+import mindustry.world.blocks.storage.CoreBlock;
 import mindustry.world.blocks.storage.CoreBlock.*;
 
 import java.util.*;
@@ -33,33 +34,34 @@ public class Logic implements ApplicationListener{
 
     public Logic(){
 
+        if(false) {
         Events.on(BlockDestroyEvent.class, event -> {
             //skip if rule is off
-            if(!state.rules.ghostBlocks) return;
+            if (!state.rules.ghostBlocks) return;
 
             //blocks that get broken are appended to the team's broken block queue
             Tile tile = event.tile;
             //skip null entities or un-rebuildables, for obvious reasons
-            if(tile.build == null || !tile.block().rebuildable) return;
+            if (tile.build == null || !tile.block().rebuildable) return;
 
             tile.build.addPlan(true);
         });
 
         Events.on(BlockBuildEndEvent.class, event -> {
-            if(!event.breaking){
+            if (!event.breaking) {
                 TeamData data = event.team.data();
                 Iterator<BlockPlan> it = data.plans.iterator();
                 var bounds = event.tile.block().bounds(event.tile.x, event.tile.y, Tmp.r1);
-                while(it.hasNext()){
+                while (it.hasNext()) {
                     BlockPlan b = it.next();
                     Block block = content.block(b.block);
-                    if(bounds.overlaps(block.bounds(b.x, b.y, Tmp.r2))){
+                    if (bounds.overlaps(block.bounds(b.x, b.y, Tmp.r2))) {
                         b.removed = true;
                         it.remove();
                     }
                 }
 
-                if(event.team == state.rules.defaultTeam){
+                if (event.team == state.rules.defaultTeam) {
                     state.stats.placedBlockCount.increment(event.tile.block());
                 }
             }
@@ -67,33 +69,33 @@ public class Logic implements ApplicationListener{
 
         //when loading a 'damaged' sector, propagate the damage
         Events.on(SaveLoadEvent.class, e -> {
-            if(state.isCampaign()){
+            if (state.isCampaign()) {
                 state.rules.coreIncinerates = true;
 
                 //TODO why is this even a thing?
                 state.rules.canGameOver = true;
 
                 //fresh map has no sector info
-                if(!e.isMap){
+                if (!e.isMap) {
                     SectorInfo info = state.rules.sector.info;
                     info.write();
 
                     //only simulate waves if the planet allows it
-                    if(state.rules.sector.planet.allowWaveSimulation){
+                    if (state.rules.sector.planet.allowWaveSimulation) {
                         //how much wave time has passed
                         int wavesPassed = info.wavesPassed;
 
                         //wave has passed, remove all enemies, they are assumed to be dead
-                        if(wavesPassed > 0){
+                        if (wavesPassed > 0) {
                             Groups.unit.each(u -> {
-                                if(u.team == state.rules.waveTeam){
+                                if (u.team == state.rules.waveTeam) {
                                     u.remove();
                                 }
                             });
                         }
 
                         //simulate passing of waves
-                        if(wavesPassed > 0){
+                        if (wavesPassed > 0) {
                             //simulate wave counter moving forward
                             state.wave += wavesPassed;
                             state.wavetime = state.rules.waveSpacing;
@@ -119,7 +121,7 @@ public class Logic implements ApplicationListener{
             //reset weather on play
             var randomWeather = state.rules.weather.copy().shuffle();
             float sum = 0f;
-            for(var weather : randomWeather){
+            for (var weather : randomWeather) {
                 weather.cooldown = sum + Mathf.random(weather.maxFrequency);
                 sum += weather.cooldown;
             }
@@ -131,7 +133,7 @@ public class Logic implements ApplicationListener{
             //enable infinite ammo for wave team by default
             state.rules.waveTeam.rules().infiniteAmmo = true;
 
-            if(state.isCampaign()){
+            if (state.isCampaign()) {
                 //enable building AI on campaign unless the preset disables it
 
                 state.rules.coreIncinerates = true;
@@ -139,8 +141,8 @@ public class Logic implements ApplicationListener{
                 state.rules.waveTeam.rules().buildSpeedMultiplier *= state.getPlanet().enemyBuildSpeedMultiplier;
 
                 //fill enemy cores by default? TODO decide
-                for(var core : state.rules.waveTeam.cores()){
-                    for(Item item : content.items()){
+                for (var core : state.rules.waveTeam.cores()) {
+                    for (Item item : content.items()) {
                         core.items.set(item, core.block.itemCapacity);
                     }
                 }
@@ -156,19 +158,19 @@ public class Logic implements ApplicationListener{
 
         //sync research
         Events.on(UnlockEvent.class, e -> {
-            if(net.server()){
+            if (net.server()) {
                 Call.researched(e.content);
             }
         });
 
         Events.on(SectorCaptureEvent.class, e -> {
-            if(!net.client() && e.sector == state.getSector() && e.sector.isBeingPlayed()){
+            if (!net.client() && e.sector == state.getSector() && e.sector.isBeingPlayed()) {
                 state.rules.waveTeam.data().destroyToDerelict();
             }
         });
 
         Events.on(BlockDestroyEvent.class, e -> {
-            if(e.tile.build instanceof CoreBuild core && core.team.isAI() && state.rules.coreDestroyClear){
+            if (e.tile.build instanceof CoreBuild core && core.team.isAI() && state.rules.coreDestroyClear) {
                 Core.app.post(() -> {
                     core.team.data().timeDestroy(core.x, core.y, state.rules.enemyCoreBuildRadius);
                 });
@@ -177,45 +179,47 @@ public class Logic implements ApplicationListener{
 
         //listen to core changes; if all cores have been destroyed, set to derelict.
         Events.on(CoreChangeEvent.class, e -> Core.app.post(() -> {
-            if(state.rules.cleanupDeadTeams && state.rules.pvp && !e.core.isAdded() && e.core.team != Team.derelict && e.core.team.cores().isEmpty()){
+            if (state.rules.cleanupDeadTeams && state.rules.pvp && !e.core.isAdded() && e.core.team != Team.derelict && e.core.team.cores().isEmpty()) {
                 e.core.team.data().destroyToDerelict();
             }
         }));
 
         Events.on(BlockBuildEndEvent.class, e -> {
-            if(e.team == state.rules.defaultTeam){
-                if(e.breaking){
+            if (e.team == state.rules.defaultTeam) {
+                if (e.breaking) {
                     state.stats.buildingsDeconstructed++;
-                }else{
+                } else {
                     state.stats.buildingsBuilt++;
                 }
             }
         });
 
         Events.on(BlockDestroyEvent.class, e -> {
-            if(e.tile.team() == state.rules.defaultTeam){
-                state.stats.buildingsDestroyed ++;
+            if (e.tile.team() == state.rules.defaultTeam) {
+                state.stats.buildingsDestroyed++;
             }
         });
 
         Events.on(UnitDestroyEvent.class, e -> {
-            if(e.unit.team() != state.rules.defaultTeam){
-                state.stats.enemyUnitsDestroyed ++;
+            if (e.unit.team() != state.rules.defaultTeam) {
+                state.stats.enemyUnitsDestroyed++;
             }
         });
 
         Events.on(UnitCreateEvent.class, e -> {
-            if(e.unit.team == state.rules.defaultTeam){
+            if (e.unit.team == state.rules.defaultTeam) {
                 state.stats.unitsCreated++;
             }
         });
+        }
     }
 
+    //add our constructEvents
     //dummy method that creates and constructs our logic events instead of having it run in constructor, this logic can
     //be pulled out and tested.
     public void ConstructLogicEvents()
     {
-        Events.on(BlockDestroyEvent.class, event -> {
+        Events.on(EventType.BlockDestroyEvent.class, event -> {
             //skip if rule is off
             if(!state.rules.ghostBlocks) return;
 
@@ -227,13 +231,13 @@ public class Logic implements ApplicationListener{
             tile.build.addPlan(true);
         });
 
-        Events.on(BlockBuildEndEvent.class, event -> {
+        Events.on(EventType.BlockBuildEndEvent.class, event -> {
             if(!event.breaking){
-                TeamData data = event.team.data();
-                Iterator<BlockPlan> it = data.plans.iterator();
+                Teams.TeamData data = event.team.data();
+                Iterator<Teams.BlockPlan> it = data.plans.iterator();
                 var bounds = event.tile.block().bounds(event.tile.x, event.tile.y, Tmp.r1);
                 while(it.hasNext()){
-                    BlockPlan b = it.next();
+                    Teams.BlockPlan b = it.next();
                     Block block = content.block(b.block);
                     if(bounds.overlaps(block.bounds(b.x, b.y, Tmp.r2))){
                         b.removed = true;
@@ -248,7 +252,7 @@ public class Logic implements ApplicationListener{
         });
 
         //when loading a 'damaged' sector, propagate the damage
-        Events.on(SaveLoadEvent.class, e -> {
+        Events.on(EventType.SaveLoadEvent.class, e -> {
             if(state.isCampaign()){
                 state.rules.coreIncinerates = true;
 
@@ -297,7 +301,7 @@ public class Logic implements ApplicationListener{
             }
         });
 
-        Events.on(PlayEvent.class, e -> {
+        Events.on(EventType.PlayEvent.class, e -> {
             //reset weather on play
             var randomWeather = state.rules.weather.copy().shuffle();
             float sum = 0f;
@@ -309,7 +313,7 @@ public class Logic implements ApplicationListener{
             state.tick = 0f;
         });
 
-        Events.on(WorldLoadEvent.class, e -> {
+        Events.on(EventType.WorldLoadEvent.class, e -> {
             //enable infinite ammo for wave team by default
             state.rules.waveTeam.rules().infiniteAmmo = true;
 
@@ -337,20 +341,20 @@ public class Logic implements ApplicationListener{
         });
 
         //sync research
-        Events.on(UnlockEvent.class, e -> {
+        Events.on(EventType.UnlockEvent.class, e -> {
             if(net.server()){
                 Call.researched(e.content);
             }
         });
 
-        Events.on(SectorCaptureEvent.class, e -> {
+        Events.on(EventType.SectorCaptureEvent.class, e -> {
             if(!net.client() && e.sector == state.getSector() && e.sector.isBeingPlayed()){
                 state.rules.waveTeam.data().destroyToDerelict();
             }
         });
 
-        Events.on(BlockDestroyEvent.class, e -> {
-            if(e.tile.build instanceof CoreBuild core && core.team.isAI() && state.rules.coreDestroyClear){
+        Events.on(EventType.BlockDestroyEvent.class, e -> {
+            if(e.tile.build instanceof CoreBlock.CoreBuild core && core.team.isAI() && state.rules.coreDestroyClear){
                 Core.app.post(() -> {
                     core.team.data().timeDestroy(core.x, core.y, state.rules.enemyCoreBuildRadius);
                 });
@@ -358,13 +362,13 @@ public class Logic implements ApplicationListener{
         });
 
         //listen to core changes; if all cores have been destroyed, set to derelict.
-        Events.on(CoreChangeEvent.class, e -> Core.app.post(() -> {
+        Events.on(EventType.CoreChangeEvent.class, e -> Core.app.post(() -> {
             if(state.rules.cleanupDeadTeams && state.rules.pvp && !e.core.isAdded() && e.core.team != Team.derelict && e.core.team.cores().isEmpty()){
                 e.core.team.data().destroyToDerelict();
             }
         }));
 
-        Events.on(BlockBuildEndEvent.class, e -> {
+        Events.on(EventType.BlockBuildEndEvent.class, e -> {
             if(e.team == state.rules.defaultTeam){
                 if(e.breaking){
                     state.stats.buildingsDeconstructed++;
@@ -374,19 +378,19 @@ public class Logic implements ApplicationListener{
             }
         });
 
-        Events.on(BlockDestroyEvent.class, e -> {
+        Events.on(EventType.BlockDestroyEvent.class, e -> {
             if(e.tile.team() == state.rules.defaultTeam){
                 state.stats.buildingsDestroyed ++;
             }
         });
 
-        Events.on(UnitDestroyEvent.class, e -> {
+        Events.on(EventType.UnitDestroyEvent.class, e -> {
             if(e.unit.team() != state.rules.defaultTeam){
                 state.stats.enemyUnitsDestroyed ++;
             }
         });
 
-        Events.on(UnitCreateEvent.class, e -> {
+        Events.on(EventType.UnitCreateEvent.class, e -> {
             if(e.unit.team == state.rules.defaultTeam){
                 state.stats.unitsCreated++;
             }
